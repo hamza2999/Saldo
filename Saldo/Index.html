@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saldo</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Saldo</h1>
+    </header>
+    <main>
+        <section id="balance">
+            <h2>Your Balance</h2>
+            <p id="balance-amount">$0.00</p>
+        </section>
+        <section id="transactions">
+            <h2>Transaction History</h2>
+            <ul id="transaction-list">
+                <li>No transactions added yet.</li>
+            </ul>
+        </section>
+        <section id="add-transaction">
+            <h2>Add Transaction</h2>
+            <form id="transaction-form">
+                <input type="text" id="transaction-description" placeholder="Description" required>
+                <input type="number" id="transaction-amount" placeholder="Amount" required>
+                <button type="submit">Add Transaction</button>
+            </form>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2023 Saldo. All rights reserved.</p>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>
