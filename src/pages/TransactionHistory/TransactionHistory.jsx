@@ -1,31 +1,61 @@
+import { useState } from 'react'
+import { useTransactions } from '../../context/TransactionsContext.jsx'
+import { CATEGORIES, CATEGORY_COLORS } from '../../constants/categories.js'
+import { formatAmount, formatDateDisplay } from '../../utils/format.js'
 import './TransactionHistory.css'
 
-const categories = ['Alle kategorier', 'Bolig', 'Mat', 'Transport', 'Underholdning', 'Helse', 'Inntekt', 'Annet']
+const ALL_CATEGORIES = 'Alle kategorier'
+const FILTER_CATEGORIES = [ALL_CATEGORIES, ...CATEGORIES]
 
-// Placeholder data — bytt ut med ekte transaksjoner / state.
-const transactions = [
-  { id: 1, description: 'Husleie', category: 'Bolig', date: '12.09.2026', amount: -12500, type: 'expense' },
-  { id: 2, description: 'Lønn', category: 'Inntekt', date: '10.09.2026', amount: 28500, type: 'income' },
-  { id: 3, description: 'Rema 1000', category: 'Mat', date: '09.09.2026', amount: -642, type: 'expense' },
-  { id: 4, description: 'Kollektivtransport', category: 'Transport', date: '07.09.2026', amount: -430, type: 'expense' },
-  { id: 5, description: 'Netflix', category: 'Underholdning', date: '05.09.2026', amount: -149, type: 'expense' },
-  { id: 6, description: 'Apotek', category: 'Helse', date: '04.09.2026', amount: -215, type: 'expense' },
-  { id: 7, description: 'Kiwi', category: 'Mat', date: '02.09.2026', amount: -388, type: 'expense' },
-  { id: 8, description: 'Strøm', category: 'Bolig', date: '01.09.2026', amount: -980, type: 'expense' },
-  { id: 9, description: 'Frilansoppdrag', category: 'Inntekt', date: '28.08.2026', amount: 4200, type: 'income' },
-  { id: 10, description: 'Spotify', category: 'Underholdning', date: '27.08.2026', amount: -119, type: 'expense' },
-]
-
-function formatAmount(amount) {
-  const formatted = new Intl.NumberFormat('nb-NO', {
-    style: 'currency',
-    currency: 'NOK',
-    maximumFractionDigits: 0,
-  }).format(Math.abs(amount))
-  return amount < 0 ? `− ${formatted}` : `+ ${formatted}`
+const emptyFilters = {
+  category: ALL_CATEGORIES,
+  from: '',
+  to: '',
 }
 
 function TransactionHistory() {
+  const { transactions } = useTransactions()
+  const [filters, setFilters] = useState(emptyFilters)
+  const [sort, setSort] = useState({ field: 'date', direction: 'desc' })
+
+  function updateFilter(field, value) {
+    setFilters((previous) => ({ ...previous, [field]: value }))
+  }
+
+  function toggleSort(field) {
+    setSort((previous) => {
+      if (previous.field !== field) return { field, direction: 'desc' }
+      return { field, direction: previous.direction === 'desc' ? 'asc' : 'desc' }
+    })
+  }
+
+  function sortIndicator(field) {
+    if (sort.field !== field) return ''
+    return sort.direction === 'desc' ? ' ↓' : ' ↑'
+  }
+
+  const filtered = transactions.filter((tx) => {
+    if (filters.category !== ALL_CATEGORIES && tx.category !== filters.category) return false
+    if (filters.from && tx.date < filters.from) return false
+    if (filters.to && tx.date > filters.to) return false
+    return true
+  })
+
+  const sorted = [...filtered].sort((a, b) => {
+    let result = 0
+    if (sort.field === 'date') {
+      result = a.date < b.date ? -1 : a.date > b.date ? 1 : 0
+    } else if (sort.field === 'amount') {
+      result = a.amount - b.amount
+    } else if (sort.field === 'description') {
+      result = a.description.localeCompare(b.description)
+    }
+    return sort.direction === 'asc' ? result : -result
+  })
+
+  const hasActiveFilters =
+    filters.category !== ALL_CATEGORIES || filters.from !== '' || filters.to !== ''
+
   return (
     <div className="page">
       <div className="page-header">
@@ -35,70 +65,96 @@ function TransactionHistory() {
         </div>
       </div>
 
-      {/* TODO: koble filtrene til faktisk filtrering av listen */}
       <div className="filter-bar">
-        <select className="select" defaultValue={categories[0]}>
-          {categories.map((category) => (
+        <select
+          className="select"
+          value={filters.category}
+          onChange={(event) => updateFilter('category', event.target.value)}
+        >
+          {FILTER_CATEGORIES.map((category) => (
             <option key={category} value={category}>
               {category}
             </option>
           ))}
         </select>
-        <input type="date" className="input" aria-label="Fra dato" />
-        <input type="date" className="input" aria-label="Til dato" />
-        <button type="button" className="btn btn-secondary">
-          Filtrer
-        </button>
+        <input
+          type="date"
+          className="input"
+          aria-label="Fra dato"
+          value={filters.from}
+          onChange={(event) => updateFilter('from', event.target.value)}
+        />
+        <input
+          type="date"
+          className="input"
+          aria-label="Til dato"
+          value={filters.to}
+          onChange={(event) => updateFilter('to', event.target.value)}
+        />
+        {hasActiveFilters && (
+          <button type="button" className="btn btn-secondary" onClick={() => setFilters(emptyFilters)}>
+            Nullstill filter
+          </button>
+        )}
       </div>
 
       <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>
-                {/* TODO: koble til faktisk sortering */}
-                <button type="button" className="th-sort">
-                  Beskrivelse
-                </button>
-              </th>
-              <th>Kategori</th>
-              <th>
-                <button type="button" className="th-sort">
-                  Dato ↓
-                </button>
-              </th>
-              <th>
-                <button type="button" className="th-sort">
-                  Beløp
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((tx) => (
-              <tr key={tx.id}>
-                <td>{tx.description}</td>
-                <td>
-                  <span className="category-pill">
-                    <span className="category-dot" />
-                    {tx.category}
-                  </span>
-                </td>
-                <td>{tx.date}</td>
-                <td>
-                  <span
-                    className={
-                      'amount ' +
-                      (tx.type === 'income' ? 'amount-positive' : 'amount-negative')
-                    }
-                  >
-                    {formatAmount(tx.amount)}
-                  </span>
-                </td>
+        {sorted.length > 0 ? (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('description')}>
+                    Beskrivelse{sortIndicator('description')}
+                  </button>
+                </th>
+                <th>Kategori</th>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('date')}>
+                    Dato{sortIndicator('date')}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('amount')}>
+                    Beløp{sortIndicator('amount')}
+                  </button>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sorted.map((tx) => (
+                <tr key={tx.id}>
+                  <td>{tx.description || '—'}</td>
+                  <td>
+                    <span className="category-pill">
+                      <span
+                        className="category-dot"
+                        style={{ background: CATEGORY_COLORS[tx.category] || 'var(--color-primary)' }}
+                      />
+                      {tx.category}
+                    </span>
+                  </td>
+                  <td>{formatDateDisplay(tx.date)}</td>
+                  <td>
+                    <span
+                      className={
+                        'amount ' + (tx.type === 'income' ? 'amount-positive' : 'amount-negative')
+                      }
+                    >
+                      {formatAmount(tx.amount, tx.type)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="page-subtitle">
+            {transactions.length === 0
+              ? 'Ingen transaksjoner registrert ennå.'
+              : 'Ingen transaksjoner matcher filteret.'}
+          </p>
+        )}
       </div>
     </div>
   )

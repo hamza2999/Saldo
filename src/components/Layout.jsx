@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import './Layout.css'
 
 const navItems = [
@@ -9,6 +9,15 @@ const navItems = [
 ]
 
 function Layout() {
+  const navigate = useNavigate()
+
+  // Midlertidig: sender deg bare tilbake til innloggingssiden, uten å
+  // faktisk logge deg ut noe sted (det finnes jo ingen ekte sesjon ennå).
+  // Bytt ut med ekte utlogging når Azure-autentisering er koblet til.
+  function handleLogout() {
+    navigate('/')
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -35,8 +44,7 @@ function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          {/* TODO: koble til faktisk utlogging */} v  
-          <button type="button" className="sidebar-logout">
+          <button type="button" className="sidebar-logout" onClick={handleLogout}>
             Logg ut
           </button>
         </div>
