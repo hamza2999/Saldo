@@ -11,3 +11,15 @@
 .th-sort:hover {
   color: var(--color-text);
 }
+
+.tx-actions {
+  text-align: right;
+}
+
+.tx-delete {
+  font-size: var(--fs-sm);
+}
+
+.tx-delete:hover {
+  color: var(--color-negative);
+}

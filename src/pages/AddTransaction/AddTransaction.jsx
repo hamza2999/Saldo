@@ -2,18 +2,21 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTransactions } from '../../context/TransactionsContext.jsx'
 import { CATEGORIES } from '../../constants/categories.js'
+import { toISODate } from '../../utils/format.js'
 import './AddTransaction.css'
 
-const emptyForm = {
-  type: 'expense',
-  amount: '',
-  date: '',
-  category: '',
-  description: '',
+function createEmptyForm() {
+  return {
+    type: 'expense',
+    amount: '',
+    date: toISODate(new Date()),
+    category: '',
+    description: '',
+  }
 }
 
 function AddTransaction() {
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(createEmptyForm)
   const { addTransaction } = useTransactions()
   const navigate = useNavigate()
 

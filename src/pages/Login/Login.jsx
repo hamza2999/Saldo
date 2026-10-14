@@ -1,14 +1,25 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '../../context/UserContext.jsx'
 import './Login.css'
 
 function Login() {
   const navigate = useNavigate()
+  const { user, signIn } = useUser()
+  const [form, setForm] = useState({
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+  })
 
-  // Midlertidig: sender deg bare videre til dashbordet, ingen ekte
-  // innlogging eller validering. Erstatt med din egen logikk
-  // (autentisering, feilhåndtering osv.) når du er klar.
+  function updateField(field, value) {
+    setForm((previous) => ({ ...previous, [field]: value }))
+  }
+
+  // Midlertidig: ingen passord eller ekte autentisering. Navn og e-post
+  // lagres lokalt og brukes i appen. Bytt ut med ekte innlogging senere.
   function handleSubmit(event) {
     event.preventDefault()
+    signIn(form)
     navigate('/dashboard')
   }
 
@@ -25,6 +36,22 @@ function Login() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
+            <label className="label" htmlFor="name">
+              Navn
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              className="input"
+              required
+              autoComplete="name"
+              value={form.name}
+              onChange={(event) => updateField('name', event.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
             <label className="label" htmlFor="email">
               E-post
             </label>
@@ -33,22 +60,10 @@ function Login() {
               name="email"
               type="email"
               className="input"
-              placeholder="navn@epost.no"
+              required
               autoComplete="email"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="label" htmlFor="password">
-              Passord
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              className="input"
-              placeholder="••••••••"
-              autoComplete="current-password"
+              value={form.email}
+              onChange={(event) => updateField('email', event.target.value)}
             />
           </div>
 
@@ -56,13 +71,6 @@ function Login() {
             Logg inn
           </button>
         </form>
-
-        <p className="auth-switch">
-          Har du ikke en konto?{' '}
-          <a href="#" className="btn-ghost">
-            Registrer deg
-          </a>
-        </p>
       </div>
     </div>
   )

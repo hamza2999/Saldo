@@ -25,6 +25,15 @@ export function formatCurrency(amount) {
   return amount < 0 ? `− ${formatted}` : formatted
 }
 
+// Date -> '2026-09-19' i lokal tid (toISOString() bruker UTC og kan gi
+// feil dag rundt midnatt).
+export function toISODate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // Datoene lagres som ISO-strenger ('2026-09-19', slik <input type="date">
 // leverer dem). Denne gjør dem lesbare i tabeller: '19.09.2026'.
 export function formatDateDisplay(isoDate) {

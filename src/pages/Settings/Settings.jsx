@@ -1,6 +1,48 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useUser } from '../../context/UserContext.jsx'
+import { useTransactions } from '../../context/TransactionsContext.jsx'
 import './Settings.css'
 
 function Settings() {
+  const navigate = useNavigate()
+  const { user, updateUser, signOut } = useUser()
+  const { transactions, clearTransactions } = useTransactions()
+  const [form, setForm] = useState({ name: user.name, email: user.email })
+  const [saved, setSaved] = useState(false)
+
+  const hasChanges = form.name.trim() !== user.name || form.email.trim() !== user.email
+
+  function updateField(field, value) {
+    setForm((previous) => ({ ...previous, [field]: value }))
+    setSaved(false)
+  }
+
+  function handleSave(event) {
+    event.preventDefault()
+    updateUser({ name: form.name.trim(), email: form.email.trim() })
+    setSaved(true)
+  }
+
+  function handleClearTransactions() {
+    const confirmed = window.confirm(
+      `Slette alle ${transactions.length} transaksjoner? Dette kan ikke angres.`,
+    )
+    if (confirmed) clearTransactions()
+  }
+
+  // Midlertidig: "kontoen" finnes bare lokalt i nettleseren, så sletting
+  // betyr å fjerne transaksjonene og brukeren fra localStorage.
+  function handleDeleteAccount() {
+    const confirmed = window.confirm(
+      'Slette kontoen og all data permanent? Dette kan ikke angres.',
+    )
+    if (!confirmed) return
+    clearTransactions()
+    signOut()
+    navigate('/')
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -15,77 +57,62 @@ function Settings() {
           <div className="card-header">
             <h2 className="section-title">Kontoinformasjon</h2>
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <span className="label">Navn</span>
-              <p className="settings-value">Hamza Ali</p>
-            </div>
-            <div className="form-group">
-              <span className="label">E-post</span>
-              <p className="settings-value">hamza@example.com</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-header">
-            <h2 className="section-title">Endre passord</h2>
-          </div>
-          {/* TODO: koble til faktisk oppdatering av passord */}
-          <form className="settings-form">
-            <div className="form-group">
-              <label className="label" htmlFor="current-password">
-                Nåværende passord
-              </label>
-              <input
-                id="current-password"
-                name="current-password"
-                type="password"
-                className="input"
-                placeholder="••••••••"
-              />
-            </div>
+          <form onSubmit={handleSave}>
             <div className="form-row">
               <div className="form-group">
-                <label className="label" htmlFor="new-password">
-                  Nytt passord
+                <label className="label" htmlFor="settings-name">
+                  Navn
                 </label>
                 <input
-                  id="new-password"
-                  name="new-password"
-                  type="password"
+                  id="settings-name"
+                  type="text"
                   className="input"
-                  placeholder="••••••••"
+                  required
+                  value={form.name}
+                  onChange={(event) => updateField('name', event.target.value)}
                 />
               </div>
               <div className="form-group">
-                <label className="label" htmlFor="confirm-password">
-                  Bekreft nytt passord
+                <label className="label" htmlFor="settings-email">
+                  E-post
                 </label>
                 <input
-                  id="confirm-password"
-                  name="confirm-password"
-                  type="password"
+                  id="settings-email"
+                  type="email"
                   className="input"
-                  placeholder="••••••••"
+                  required
+                  value={form.email}
+                  onChange={(event) => updateField('email', event.target.value)}
                 />
               </div>
             </div>
-            <button type="submit" className="btn btn-primary">
-              Oppdater passord
-            </button>
+            <div className="settings-actions">
+              <button type="submit" className="btn btn-primary" disabled={!hasChanges}>
+                Lagre endringer
+              </button>
+              {saved && <span className="helper-text">Lagret ✓</span>}
+            </div>
           </form>
         </section>
 
         <section className="danger-zone">
           <h2 className="section-title">Faresone</h2>
           <p className="page-subtitle">
-            Sletting av konto fjerner all data permanent og kan ikke angres.
+            Sletting fjerner data permanent og kan ikke angres.
           </p>
-          {/* TODO: koble til faktisk sletting, gjerne med bekreftelsessteg */}
-          <button type="button" className="btn btn-danger danger-zone-action">
-            Slett konto
-          </button>
+          <div className="settings-actions danger-zone-action">
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleClearTransactions}
+              disabled={transactions.length === 0}
+            >
+              Slett alle transaksjoner
+            </button>
+            <button type="button" className="btn btn-danger" onClick={handleDeleteAccount}>
+              Slett konto
+            </button>
+          </div>
         </section>
       </div>
     </div>

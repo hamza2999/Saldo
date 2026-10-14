@@ -57,6 +57,10 @@ function transactionsReducer(state, action) {
       }
     }
 
+    case 'CLEAR_ALL': {
+      return { ...state, transactions: [] }
+    }
+
     default:
       return state
   }
@@ -98,11 +102,16 @@ export function TransactionsProvider({ children }) {
     dispatch({ type: 'EDIT_TRANSACTION', payload: { id, updates } })
   }
 
+  function clearTransactions() {
+    dispatch({ type: 'CLEAR_ALL' })
+  }
+
   const value = {
     transactions: state.transactions,
     addTransaction,
     deleteTransaction,
     editTransaction,
+    clearTransactions,
   }
 
   return (

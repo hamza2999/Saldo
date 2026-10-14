@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { getInitials, useUser } from '../context/UserContext.jsx'
 import './Layout.css'
 
 const navItems = [
@@ -10,11 +11,17 @@ const navItems = [
 
 function Layout() {
   const navigate = useNavigate()
+  const { user, signOut } = useUser()
 
-  // Midlertidig: sender deg bare tilbake til innloggingssiden, uten å
-  // faktisk logge deg ut noe sted (det finnes jo ingen ekte sesjon ennå).
-  // Bytt ut med ekte utlogging når Azure-autentisering er koblet til.
+  // Ingen "bruker" ennå → tilbake til innloggingssiden.
+  if (!user) {
+    return <Navigate to="/" replace />
+  }
+
+  // Midlertidig: fjerner bare den lokale brukeren. Transaksjonene blir
+  // liggende. Bytt ut med ekte utlogging når autentisering er koblet til.
   function handleLogout() {
+    signOut()
     navigate('/')
   }
 
@@ -55,9 +62,9 @@ function Layout() {
           <div className="topbar-spacer" />
           <div className="topbar-user">
             <span className="topbar-user-avatar" aria-hidden="true">
-              HA
+              {getInitials(user.name)}
             </span>
-            <span className="topbar-user-name">Hamza Ali</span>
+            <span className="topbar-user-name">{user.name}</span>
           </div>
         </header>
 

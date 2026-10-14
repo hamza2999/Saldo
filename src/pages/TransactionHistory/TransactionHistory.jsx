@@ -14,9 +14,14 @@ const emptyFilters = {
 }
 
 function TransactionHistory() {
-  const { transactions } = useTransactions()
+  const { transactions, deleteTransaction } = useTransactions()
   const [filters, setFilters] = useState(emptyFilters)
   const [sort, setSort] = useState({ field: 'date', direction: 'desc' })
+
+  function handleDelete(tx) {
+    const label = tx.description || tx.category
+    if (window.confirm(`Slette «${label}»?`)) deleteTransaction(tx.id)
+  }
 
   function updateFilter(field, value) {
     setFilters((previous) => ({ ...previous, [field]: value }))
@@ -119,6 +124,7 @@ function TransactionHistory() {
                     Beløp{sortIndicator('amount')}
                   </button>
                 </th>
+                <th aria-label="Handlinger" />
               </tr>
             </thead>
             <tbody>
@@ -143,6 +149,16 @@ function TransactionHistory() {
                     >
                       {formatAmount(tx.amount, tx.type)}
                     </span>
+                  </td>
+                  <td className="tx-actions">
+                    <button
+                      type="button"
+                      className="btn-ghost tx-delete"
+                      onClick={() => handleDelete(tx)}
+                      aria-label={`Slett ${tx.description || 'transaksjon'}`}
+                    >
+                      Slett
+                    </button>
                   </td>
                 </tr>
               ))}
