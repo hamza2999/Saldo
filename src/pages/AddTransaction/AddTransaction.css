@@ -1,7 +1,0 @@
-.add-transaction-card {
-  max-width: 520px;
-}
-
-.add-transaction-form .form-group:last-of-type {
-  margin-bottom: var(--space-5);
-}
