@@ -1,0 +1,234 @@
+.card.balance-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  min-height: 214px;
+  margin-bottom: var(--space-5);
+  padding: var(--space-6);
+  border: 0;
+  background:
+    radial-gradient(ellipse at 85% 10%, rgba(99, 181, 143, 0.3), transparent 35%),
+    linear-gradient(120deg, #0b2447 0%, #123869 100%);
+  box-shadow: 0 12px 28px rgba(11, 36, 71, 0.16);
+}
+
+.balance-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.balance-hero-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.balance-hero-amount {
+  display: block;
+  color: #fff;
+  font-size: clamp(2.5rem, 6vw, 4.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+  overflow-wrap: anywhere;
+}
+
+.balance-hero .balance-hero-amount.amount-negative {
+  color: #ffb4ab;
+}
+
+.balance-hero-caption {
+  margin-top: var(--space-3);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-sm);
+}
+
+.balance-hero-action {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  color: var(--color-primary);
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.balance-hero-action:hover {
+  background: #edf5f0;
+}
+
+.balance-hero-action span {
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+
+.dashboard-stats {
+  margin-bottom: var(--space-5);
+}
+
+.dashboard-stats .stat-card {
+  border-top: 3px solid var(--color-primary-light);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dashboard-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-stats .stat-card:nth-child(1) {
+  border-top-color: var(--color-positive);
+}
+
+.dashboard-stats .stat-card:nth-child(2) {
+  border-top-color: var(--color-negative);
+}
+
+.dashboard-stats .stat-card:nth-child(3) {
+  border-top-color: var(--color-primary);
+}
+
+.dashboard-charts {
+  margin-bottom: var(--space-5);
+  align-items: stretch;
+}
+
+.dashboard-charts > .card {
+  min-width: 0;
+}
+
+.dashboard-charts .card-header .section-title {
+  margin-bottom: 0;
+}
+
+.dashboard-recent {
+  margin-bottom: var(--space-5);
+}
+
+.dashboard-recent .card-header .section-title {
+  margin-bottom: 0;
+}
+
+.dashboard-table-wrap {
+  overflow-x: auto;
+  margin: 0 calc(var(--space-2) * -1);
+}
+
+.dashboard-table-wrap .table {
+  min-width: 560px;
+}
+
+/* Bar sparkline */
+.spark-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 160px;
+  padding-top: var(--space-3);
+}
+
+.spark-bar {
+  flex: 1;
+  min-width: 3px;
+  min-height: 4px;
+  background: linear-gradient(180deg, #91c7ae 0%, #dcece3 100%);
+  border-radius: 5px 5px 0 0;
+  position: relative;
+  transition: filter var(--transition-fast);
+}
+
+.spark-bar:hover {
+  filter: brightness(0.88);
+}
+
+.spark-bar:last-child {
+  background: linear-gradient(180deg, #1c8a56 0%, #53ae80 100%);
+}
+
+/* Donut chart */
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.donut-chart {
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.donut-chart::after {
+  content: '';
+  position: absolute;
+  inset: 22px;
+  background: var(--color-surface);
+  border-radius: 50%;
+}
+
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+}
+
+.donut-legend-label {
+  color: var(--color-text-secondary);
+  flex: 1;
+}
+
+.donut-legend-value {
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+}
+
+@media (max-width: 900px) {
+  .dashboard-charts.grid-2,
+  .dashboard-stats.grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-hero {
+    align-items: flex-start;
+  }
+
+  .donut-wrap {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .balance-hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-5);
+  }
+
+  .balance-hero-action {
+    align-self: flex-start;
+  }
+
+  .donut-wrap {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .donut-legend {
+    width: 100%;
+  }
+}
