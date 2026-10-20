@@ -20,11 +20,11 @@ function Register() {
       const res = await fetch('/api/registrer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ epost: form.email, passord: form.password }),
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ error: `Serverfeil (${res.status})` }));
         throw new Error(err.error);
       }
 
