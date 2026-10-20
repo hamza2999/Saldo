@@ -5,7 +5,7 @@ import Dashboard from './pages/Dashboard/Dashboard.jsx'
 import AddTransaction from './pages/AddTransaction/AddTransaction.jsx'
 import TransactionHistory from './pages/TransactionHistory/TransactionHistory.jsx'
 import Settings from './pages/Settings/Settings.jsx'
-import Register from './pages/Register'
+import Register from './pages/register'
 
 function App() {
   return (

@@ -21,7 +21,7 @@ app.use(express.json());
 app.set('trust proxy', 1);
 
 const sessionStore = new MySQLStore({
-  createDatabaseTable: true,
+  createDatabaseTable: false,
   schema: {
     tableName: 'sessions',
     columnNames: {
@@ -165,13 +165,13 @@ app.get('/api/transaksjoner', requireLogin, async (req, res) => {
 });
 
 app.post('/api/transaksjoner', requireLogin, async (req, res) => {
-  const { type, beloep, kategori_id, dato, beskrivelse } = req.body;
+  const { type, belop, kategori_id, dato, beskrivelse } = req.body;
 
   try {
     const [result] = await pool.query(
-      `INSERT INTO transaksjoner (kunde_id, type, beloep, kategori_id, dato, beskrivelse)
+      `INSERT INTO transaksjoner (kunde_id, type, belop, kategori_id, dato, beskrivelse)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.session.kundeId, type, beloep, kategori_id, dato, beskrivelse]
+      [req.session.kundeId, type, belop, kategori_id, dato, beskrivelse]
     );
     const transaksjon_id = result.insertId;
     res.status(201).json({ transaksjon_id });
@@ -183,14 +183,14 @@ app.post('/api/transaksjoner', requireLogin, async (req, res) => {
 
 app.put('/api/transaksjoner/:id', requireLogin, async (req, res) => {
   const { id } = req.params;
-  const { type, beloep, kategori_id, dato, beskrivelse } = req.body;
+  const { type, belop, kategori_id, dato, beskrivelse } = req.body;
 
   try {
     const [result] = await pool.query(
       `UPDATE transaksjoner
-       SET type = ?, beloep = ?, kategori_id = ?, dato = ?, beskrivelse = ?
+       SET type = ?, belop = ?, kategori_id = ?, dato = ?, beskrivelse = ?
        WHERE transaksjon_id = ? AND kunde_id = ?`,
-      [type, beloep, kategori_id, dato, beskrivelse, id, req.session.kundeId]
+      [type, belop, kategori_id, dato, beskrivelse, id, req.session.kundeId]
     );
 
     if (result.affectedRows === 0) {

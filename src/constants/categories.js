@@ -1,7 +1,4 @@
-// Ett sted for kategoriene, brukt av både "Legg til transaksjon",
-// "Transaksjoner" (filter) og Dashboard (kakediagram-farger).
-// Legg til/fjern kategorier her — alle steder som importerer dette
-// oppdateres automatisk.
+
 
 export const CATEGORIES = [
   'Bolig',
