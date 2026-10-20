@@ -21,7 +21,7 @@ export function TransactionsProvider({ children }) {
         if (!res.ok) return;
         const data = await res.json();
         if (Array.isArray(data)) {
-          dispatch({ type: 'SET_TRANSACTIONS', payload: data });
+          dispatch({ type: 'SET_TRANSACTIONS', payload: data.map(fromApi) });
         }
       } catch {
         // Nettverksfeil: behold det vi har.
@@ -35,24 +35,34 @@ export function TransactionsProvider({ children }) {
     const res = await fetch('/api/transaksjoner', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(transaction),
+      body: JSON.stringify(toApi(transaction)),
     });
-    const data = await res.json();
-    dispatch({ type: 'ADD_TRANSACTION', payload: { ...transaction, id: data.id } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Serverfeil (${res.status})`);
+    dispatch({ type: 'ADD_TRANSACTION', payload: { ...transaction, id: data.transaksjon_id } });
   }
 
   async function deleteTransaction(id) {
-    await fetch(`/api/transaksjoner/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/transaksjoner/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Kunne ikke slette (${res.status})`);
     dispatch({ type: 'DELETE_TRANSACTION', payload: { id } });
   }
 
   async function editTransaction(id, updates) {
-    await fetch(`/api/transaksjoner/${id}`, {
+    const current = transactions.find((t) => t.id === id);
+    const res = await fetch(`/api/transaksjoner/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+      body: JSON.stringify(toApi({ ...current, ...updates })),
     });
+    if (!res.ok) throw new Error(`Kunne ikke lagre (${res.status})`);
     dispatch({ type: 'EDIT_TRANSACTION', payload: { id, updates } });
+  }
+
+  async function clearTransactions() {
+    const res = await fetch('/api/transaksjoner', { method: 'DELETE' });
+    if (!res.ok) throw new Error(`Kunne ikke slette (${res.status})`);
+    dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
   }
 
   const value = {
@@ -60,6 +70,7 @@ export function TransactionsProvider({ children }) {
     addTransaction,
     deleteTransaction,
     editTransaction,
+    clearTransactions,
   };
 
   return (
@@ -77,6 +88,29 @@ export function useTransactions() {
   }
 
   return context;
+}
+
+// Databasen bruker norske felt ('inntekt'/'utgift', belop, kategori_navn ...),
+// resten av appen bruker { id, type: 'income'/'expense', amount, category ... }.
+function fromApi(row) {
+  return {
+    id: row.transaksjon_id,
+    type: row.type === 'inntekt' ? 'income' : 'expense',
+    amount: Number(row.belop),
+    category: row.kategori_navn,
+    date: row.dato,
+    description: row.beskrivelse ?? '',
+  };
+}
+
+function toApi(tx) {
+  return {
+    type: tx.type === 'income' ? 'inntekt' : 'utgift',
+    belop: tx.amount,
+    kategori_navn: tx.category,
+    dato: tx.date,
+    beskrivelse: tx.description || null,
+  };
 }
 
 function transactionsReducer(state, action) {

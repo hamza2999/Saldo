@@ -17,6 +17,7 @@ function createEmptyForm() {
 
 function AddTransaction() {
   const [form, setForm] = useState(createEmptyForm)
+  const [error, setError] = useState(null)
   const { addTransaction } = useTransactions()
   const navigate = useNavigate()
 
@@ -24,18 +25,21 @@ function AddTransaction() {
     setForm((previous) => ({ ...previous, [field]: value }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
 
-    addTransaction({
-      type: form.type,
-      amount: Number(form.amount),
-      category: form.category,
-      date: form.date,
-      description: form.description,
-    })
-
-    navigate('/dashboard')
+    try {
+      await addTransaction({
+        type: form.type,
+        amount: Number(form.amount),
+        category: form.category,
+        date: form.date,
+        description: form.description,
+      })
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
@@ -48,6 +52,7 @@ function AddTransaction() {
       </div>
 
       <div className="card add-transaction-card">
+        {error && <p className="helper-text">Kunne ikke lagre: {error}</p>}
         <form className="add-transaction-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <span className="label">Type</span>

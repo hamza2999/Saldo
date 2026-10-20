@@ -26,3 +26,61 @@
 .danger-zone-action {
   margin-top: var(--space-4);
 }
+
+.settings-current {
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.settings-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-5);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-4);
+}
+
+.settings-facts dt {
+  color: var(--color-text-secondary);
+}
+
+.settings-facts dd {
+  color: var(--color-text);
+  font-weight: var(--fw-medium);
+}
+
+.settings-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.settings-subtitle {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.danger-zone-delete {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid rgba(198, 57, 47, 0.2);
+  max-width: 360px;
+}
+
+.danger-zone-delete .helper-text {
+  display: block;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+@media (max-width: 600px) {
+  .settings-facts {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .settings-facts dd {
+    margin-bottom: var(--space-2);
+  }
+}

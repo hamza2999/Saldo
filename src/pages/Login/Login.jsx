@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useUser } from '../../context/UserContext.jsx';
+import Footer from '../../components/Footer.jsx';
 import './Login.css';
 
 function Login() {
   const navigate = useNavigate();
-  const { signIn } = useUser();
+  const { user, signIn } = useUser();
   const [form, setForm] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState(null);
+
+  // Allerede innlogget (gyldig sesjon) → rett til oversikten.
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   function updateField(field, value) {
     setForm((previous) => ({ ...previous, [field]: value }));
@@ -31,8 +37,7 @@ function Login() {
         throw new Error(err.error);
       }
 
-      const user = await res.json();
-      signIn(user.kunde_id, user.epost);
+      await signIn();
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -89,9 +94,10 @@ function Login() {
           </button>
         </form>
         <div className="auth-alt">
-          Har du ikke en konto? <a href="/register">Registrer deg her</a>
+          Har du ikke en konto? <Link to="/register">Registrer deg her</Link>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

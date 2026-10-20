@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useUser } from '../context/UserContext.jsx'
+import Footer from './Footer.jsx'
 import './Layout.css'
 
 const navItems = [
@@ -11,15 +12,18 @@ const navItems = [
 
 function Layout() {
   const navigate = useNavigate()
-  const { user, signOut } = useUser()
+  const { user, loading, signOut } = useUser()
+
+  // Venter på /api/meg før vi bestemmer om brukeren er logget inn.
+  if (loading) {
+    return null
+  }
 
   // Ingen "bruker" ennå → tilbake til innloggingssiden.
   if (!user) {
     return <Navigate to="/" replace />
   }
 
-  // Midlertidig: fjerner bare den lokale brukeren. Transaksjonene blir
-  // liggende. Bytt ut med ekte utlogging når autentisering er koblet til.
   function handleLogout() {
     signOut()
     navigate('/')
@@ -62,15 +66,16 @@ function Layout() {
           <div className="topbar-spacer" />
           <div className="topbar-user">
             <span className="topbar-user-avatar" aria-hidden="true">
-              <div>{user.epost}</div>
+              {user.epost?.[0]?.toUpperCase()}
             </span>
-            <span className="topbar-user-name">{user.name}</span>
+            <span className="topbar-user-name">{user.epost}</span>
           </div>
         </header>
 
         <main className="app-main">
           <Outlet />
         </main>
+        <Footer />
       </div>
     </div>
   )

@@ -4,10 +4,7 @@ CREATE TABLE IF NOT EXISTS kunder (
   passord_hash           VARCHAR(255) NOT NULL,
   opprettet              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   vilkaar_akseptert_tid  TIMESTAMP NOT NULL,
-  vilkaar_versjon        VARCHAR(20) NOT NULL,
-  tofa_aktivert          BOOLEAN NOT NULL DEFAULT FALSE,
-  tofa_hemmelighet       VARBINARY(255) NULL,
-  tofa_siste_steg        BIGINT NULL
+  vilkaar_versjon        VARCHAR(20) NOT NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS kategorier (
@@ -32,15 +29,6 @@ CREATE TABLE IF NOT EXISTS transaksjoner (
     FOREIGN KEY (kategori_id) REFERENCES kategorier(kategori_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS tofa_reservekoder (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  kunde_id   INT NOT NULL,
-  kode_hash  VARCHAR(255) NOT NULL,
-  brukt_tid  TIMESTAMP NULL DEFAULT NULL,
-  CONSTRAINT fk_reservekoder_kunde
-    FOREIGN KEY (kunde_id) REFERENCES kunder(kunde_id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
 CREATE TABLE IF NOT EXISTS sessions (
   session_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
   expires    INT(11) UNSIGNED NOT NULL,
@@ -48,5 +36,5 @@ CREATE TABLE IF NOT EXISTS sessions (
   PRIMARY KEY (session_id)
 ) ENGINE=InnoDB;
 
-INSERT INTO kategorier (kategori_navn) VALUES
-  ('Bolig'),('Mat'),('Transport'),('Underholdning'),('Helse'),('Sparing'),('Annet');
+INSERT IGNORE INTO kategorier (kategori_navn) VALUES
+  ('Bolig'),('Mat'),('Transport'),('Underholdning'),('Helse'),('Sparing'),('Inntekt'),('Annet');
