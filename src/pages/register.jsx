@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 function Register() {
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -20,16 +18,16 @@ function Register() {
       const res = await fetch('/api/registrer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ epost: form.email, passord: form.password }),
+        body: JSON.stringify(form),
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `Serverfeil (${res.status})` }));
+        const err = await res.json();
         throw new Error(err.error);
+      } else {
+        // Registration successful, redirect to login page
+        window.location.href = '/login';
       }
-
-      // Registration successful, navigate to login
-      navigate('/');
     } catch (err) {
       setError(err.message);
     }
