@@ -1,135 +1,81 @@
-import { createContext, useContext, useEffect, useReducer } from 'react'
+import { createContext, useContext, useEffect, useReducer } from 'react';
 
-// ---------------------------------------------------------------------------
-// 1. Form på dataene
-// ---------------------------------------------------------------------------
-// {
-//   id: string,
-//   type: 'income' | 'expense',
-//   amount: number,        // alltid positivt tall — fortegn styres av "type"
-//   category: string,
-//   date: string,           // ISO-format, f.eks. '2026-09-19'
-//   description: string,
-// }
-
-const STORAGE_KEY = 'saldo.transactions'
-
-function loadInitialState() {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    return { transactions: stored ? JSON.parse(stored) : [] }
-  } catch {
-    // localStorage kan feile (privat nettlesing, blokkerte cookies o.l.)
-    // — appen skal fortsatt fungere, bare uten lagring mellom økter.
-    return { transactions: [] }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 2. Reducer — samlet logikk for hvordan state endrer seg
-// ---------------------------------------------------------------------------
-function transactionsReducer(state, action) {
-  switch (action.type) {
-    case 'ADD_TRANSACTION': {
-      return {
-        ...state,
-        transactions: [action.payload, ...state.transactions],
-      }
-    }
-
-    case 'DELETE_TRANSACTION': {
-      return {
-        ...state,
-        transactions: state.transactions.filter(
-          (transaction) => transaction.id !== action.payload.id,
-        ),
-      }
-    }
-
-    case 'EDIT_TRANSACTION': {
-      return {
-        ...state,
-        transactions: state.transactions.map((transaction) =>
-          transaction.id === action.payload.id
-            ? { ...transaction, ...action.payload.updates }
-            : transaction,
-        ),
-      }
-    }
-
-    case 'CLEAR_ALL': {
-      return { ...state, transactions: [] }
-    }
-
-    default:
-      return state
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 3. Context + Provider
-// ---------------------------------------------------------------------------
-const TransactionsContext = createContext(undefined)
+const TransactionsContext = createContext(undefined);
 
 export function TransactionsProvider({ children }) {
-  const [state, dispatch] = useReducer(transactionsReducer, undefined, loadInitialState)
+  const [transactions, dispatch] = useReducer(transactionsReducer, []);
 
-  // Skriver til localStorage hver gang transaksjonslisten endrer seg, slik
-  // at data overlever en sideoppdatering. Dette er KUN lokal lagring i
-  // nettleseren til denne ene brukeren — ingen ekte database eller
-  // synkronisering mellom enheter før dette kobles til en backend.
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state.transactions))
-    } catch {
-      // Ignorer — se kommentar i loadInitialState().
+    async function fetchTransactions() {
+      const res = await fetch('/api/transaksjoner');
+      const data = await res.json();
+      dispatch({ type: 'SET_TRANSACTIONS', payload: data });
     }
-  }, [state.transactions])
 
-  function addTransaction(transaction) {
-    const withId = {
-      ...transaction,
-      id: crypto.randomUUID(),
-    }
-    dispatch({ type: 'ADD_TRANSACTION', payload: withId })
+    fetchTransactions();
+  }, []);
+
+  async function addTransaction(transaction) {
+    const res = await fetch('/api/transaksjoner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(transaction),
+    });
+    const data = await res.json();
+    dispatch({ type: 'ADD_TRANSACTION', payload: { ...transaction, id: data.id } });
   }
 
-  function deleteTransaction(id) {
-    dispatch({ type: 'DELETE_TRANSACTION', payload: { id } })
+  async function deleteTransaction(id) {
+    await fetch(`/api/transaksjoner/${id}`, { method: 'DELETE' });
+    dispatch({ type: 'DELETE_TRANSACTION', payload: { id } });
   }
 
-  function editTransaction(id, updates) {
-    dispatch({ type: 'EDIT_TRANSACTION', payload: { id, updates } })
-  }
-
-  function clearTransactions() {
-    dispatch({ type: 'CLEAR_ALL' })
+  async function editTransaction(id, updates) {
+    await fetch(`/api/transaksjoner/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    dispatch({ type: 'EDIT_TRANSACTION', payload: { id, updates } });
   }
 
   const value = {
-    transactions: state.transactions,
+    transactions,
     addTransaction,
     deleteTransaction,
     editTransaction,
-    clearTransactions,
-  }
+  };
 
   return (
     <TransactionsContext.Provider value={value}>
       {children}
     </TransactionsContext.Provider>
-  )
+  );
 }
 
-// ---------------------------------------------------------------------------
-// 4. Hook for å konsumere contexten
-// ---------------------------------------------------------------------------
 export function useTransactions() {
-  const context = useContext(TransactionsContext)
+  const context = useContext(TransactionsContext);
 
   if (context === undefined) {
-    throw new Error('useTransactions() må brukes inni en <TransactionsProvider>')
+    throw new Error('useTransactions() må brukes inni en <TransactionsProvider>');
   }
 
-  return context
+  return context;
+}
+
+function transactionsReducer(state, action) {
+  switch (action.type) {
+    case 'SET_TRANSACTIONS':
+      return action.payload;
+    case 'ADD_TRANSACTION':
+      return [...state, action.payload];
+    case 'DELETE_TRANSACTION':
+      return state.filter((t) => t.id !== action.payload.id);
+    case 'EDIT_TRANSACTION':
+      return state.map((t) =>
+        t.id === action.payload.id ? { ...t, ...action.payload.updates } : t
+      );
+    default:
+      return state;
+  }
 }

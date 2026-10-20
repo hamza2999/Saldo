@@ -1,26 +1,42 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useUser } from '../../context/UserContext.jsx'
-import './Login.css'
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../../context/UserContext.jsx';
+import './Login.css';
 
 function Login() {
-  const navigate = useNavigate()
-  const { user, signIn } = useUser()
+  const navigate = useNavigate();
+  const { signIn } = useUser();
   const [form, setForm] = useState({
-    name: user?.name ?? '',
-    email: user?.email ?? '',
-  })
+    email: '',
+    password: '',
+  });
+  const [error, setError] = useState(null);
 
   function updateField(field, value) {
-    setForm((previous) => ({ ...previous, [field]: value }))
+    setForm((previous) => ({ ...previous, [field]: value }));
   }
 
-  // Midlertidig: ingen passord eller ekte autentisering. Navn og e-post
-  // lagres lokalt og brukes i appen. Bytt ut med ekte innlogging senere.
-  function handleSubmit(event) {
-    event.preventDefault()
-    signIn(form)
-    navigate('/dashboard')
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error);
+      }
+
+      const user = await res.json();
+      signIn(user.kunde_id, user.epost);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (
@@ -34,23 +50,9 @@ function Login() {
         <h1 className="auth-title">Logg inn</h1>
         <p className="auth-subtitle">Få oversikt over økonomien din på ett sted.</p>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="label" htmlFor="name">
-              Navn
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              className="input"
-              required
-              autoComplete="name"
-              value={form.name}
-              onChange={(event) => updateField('name', event.target.value)}
-            />
-          </div>
+        {error && <p className="auth-error">{error}</p>}
 
+        <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="label" htmlFor="email">
               E-post
@@ -67,13 +69,29 @@ function Login() {
             />
           </div>
 
+          <div className="form-group">
+            <label className="label" htmlFor="password">
+              Passord
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              className="input"
+              required
+              autoComplete="current-password"
+              value={form.password}
+              onChange={(event) => updateField('password', event.target.value)}
+            />
+          </div>
+
           <button type="submit" className="btn btn-primary btn-block">
             Logg inn
           </button>
         </form>
       </div>
     </div>
-  )
+  );
 }
 
-export default Login
+export default Login;

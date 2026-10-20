@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { getInitials, useUser } from '../context/UserContext.jsx'
+import { useUser } from '../context/UserContext.jsx'
 import './Layout.css'
 
 const navItems = [
@@ -62,7 +62,7 @@ function Layout() {
           <div className="topbar-spacer" />
           <div className="topbar-user">
             <span className="topbar-user-avatar" aria-hidden="true">
-              {getInitials(user.name)}
+              <div>{user.epost}</div>
             </span>
             <span className="topbar-user-name">{user.name}</span>
           </div>
