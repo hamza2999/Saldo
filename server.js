@@ -3,7 +3,9 @@ import express from 'express';
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcrypt';
 import session from 'express-session';
-import MySQLStore from 'connect-mysql';
+import MySQLStoreFactory from 'express-mysql-session';
+
+const MySQLStore = MySQLStoreFactory(session);
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -61,8 +63,38 @@ app.get('/api/kategorier', async (req, res) => {
   }
 });
 
-const port = Number(process.env.PORT) || 3000;
 app.post('/api/registrer', async (req, res) => {
+  const { epost, passord } = req.body;
+
+  // 1. basic validation
+  if (!epost || !passord) {
+    return res.status(400).json({ error: 'epost og passord er påkrevd' });
+  }
+
+  try {
+    const [existingUser] = await pool.query(
+      `SELECT kunde_id FROM kunder WHERE epost = ?`,
+      [epost]
+    );
+
+    if (existingUser.length > 0) {
+      return res.status(409).json({ error: 'epost allerede i bruk' });
+    }
+
+    const hash = await bcrypt.hash(passord, 12);
+
+    const [result] = await pool.query(
+      `INSERT INTO kunder (epost, passord_hash, vilkaar_akseptert_tid, vilkaar_versjon)
+       VALUES (?, ?, NOW(), ?)`,
+      [epost, hash, 'v1']
+    );
+
+    res.status(201).json({ kunde_id: result.insertId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'database error' });
+  }
+});
 
 const DUMMY_HASH = await bcrypt.hash('dummy-passord', 12);
 
@@ -109,32 +141,8 @@ app.get('/api/meg', (req, res) => {
   if (!req.session.kundeId) return res.status(401).json({ error: 'ikke innlogget' });
   res.json({ kunde_id: req.session.kundeId });
 });
-  const { epost, passord } = req.body;
 
-  // 1. basic validation
-  if (!epost || !passord) {
-    return res.status(400).json({ error: 'epost og passord er påkrevd' });
-  }
-
-  try {
-    const [existingUser] = await pool.query(
-      `SELECT kunde_id FROM kunder WHERE epost = ?`,
-      [epost]
-    );
-
-    if (existingUser.length > 0) {
-      return res.status(409).json({ error: 'epost allerede i bruk' });
-    }
-
-   const hash = await bcrypt.hash(passord, 12);
-
-    const [result] = await pool.query(
-      `INSERT INTO kunder (epost, passord_hash, vilkaar_akseptert_tid, vilkaar_versjon)
-       VALUES (?, ?, NOW(), ?)`,
-      [epost, hash, 'v1']
-    );
-
-    // Hjelpefunksjon som sjekker om brukeren er innlogget
+// Hjelpefunksjon som sjekker om brukeren er innlogget
 function requireLogin(req, res, next) {
   if (!req.session.kundeId) {
     return res.status(401).json({ error: 'ikke innlogget' });
@@ -217,10 +225,5 @@ app.delete('/api/transaksjoner/:id', requireLogin, async (req, res) => {
   }
 });
 
-    res.status(201).json({ kunde_id: result.insertId });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'database error' });
-  }
-});
+const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => console.log(`Saldo API on http://localhost:${port}`));
