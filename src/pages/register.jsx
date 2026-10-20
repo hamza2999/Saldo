@@ -29,7 +29,7 @@ function Register() {
       }
 
       // Registration successful, navigate to login
-      navigate('/login');
+      navigate('/');
     } catch (err) {
       setError(err.message);
     }

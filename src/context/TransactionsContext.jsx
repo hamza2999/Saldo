@@ -1,19 +1,35 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
+import { useUser } from './UserContext.jsx';
 
 const TransactionsContext = createContext(undefined);
 
 export function TransactionsProvider({ children }) {
   const [transactions, dispatch] = useReducer(transactionsReducer, []);
 
+  const { user } = useUser();
+
+  // Hent på nytt hver gang brukeren endrer seg (innlogging/utlogging).
   useEffect(() => {
+    if (!user) {
+      dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
+      return;
+    }
+
     async function fetchTransactions() {
-      const res = await fetch('/api/transaksjoner');
-      const data = await res.json();
-      dispatch({ type: 'SET_TRANSACTIONS', payload: data });
+      try {
+        const res = await fetch('/api/transaksjoner');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          dispatch({ type: 'SET_TRANSACTIONS', payload: data });
+        }
+      } catch {
+        // Nettverksfeil: behold det vi har.
+      }
     }
 
     fetchTransactions();
-  }, []);
+  }, [user?.kundeId]);
 
   async function addTransaction(transaction) {
     const res = await fetch('/api/transaksjoner', {
