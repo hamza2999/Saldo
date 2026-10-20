@@ -5,12 +5,14 @@ import Dashboard from './pages/Dashboard/Dashboard.jsx'
 import AddTransaction from './pages/AddTransaction/AddTransaction.jsx'
 import TransactionHistory from './pages/TransactionHistory/TransactionHistory.jsx'
 import Settings from './pages/Settings/Settings.jsx'
+import Register from './pages/Register'
 
 function App() {
   return (
     <Routes>
       {/* Auth — no sidebar */}
       <Route path="/" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* App shell — sidebar + topbar */}
       <Route element={<Layout />}>
