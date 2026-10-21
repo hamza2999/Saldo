@@ -76,6 +76,7 @@ function transaksjonFeil({ type, belop, kategori_navn, dato, beskrivelse }) {
   if (typeof belop !== 'number' || !Number.isFinite(belop) || belop <= 0) {
     return 'belop må være et positivt tall';
   }
+  if (belop > 9999999999.99) return 'belop er for stort';
   if (!erTekst(kategori_navn) || kategori_navn.length > 100) return 'ugyldig kategori';
   if (!erTekst(dato) || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return 'dato må være på formen ÅÅÅÅ-MM-DD';
   if (beskrivelse != null && (!erTekst(beskrivelse) || beskrivelse.length > 500)) {
@@ -83,7 +84,6 @@ function transaksjonFeil({ type, belop, kategori_navn, dato, beskrivelse }) {
   }
   return null;
 }
-
 /* ---------- Rate limiting ---------- */
 
 const loginLimiter = rateLimit({
