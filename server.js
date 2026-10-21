@@ -6,7 +6,23 @@ import session from 'express-session';
 import MySQLStoreFactory from 'express-mysql-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import QRCode from 'qrcode';
 import { POLICY_VERSION } from './src/constants/privacy.js';
+import {
+  initTofa,
+  lagHemmelighet,
+  finnTotpSteg,
+  otpauthUri,
+  krypter,
+  dekrypter,
+  lagReservekoder,
+  formaterReservekode,
+  normaliserReservekode,
+  hashReservekode,
+} from './tofa.js';
+
+// Stopper oppstarten med en tydelig feilmelding hvis TOFA_NOKKEL mangler i .env.
+initTofa(process.env.TOFA_NOKKEL);
 
 const MIN_PASSORD = 8;
 // bcrypt bruker kun de første 72 bytene — lengre passord ville blitt stille avkortet.
@@ -159,6 +175,61 @@ async function slettAndreSesjoner(kundeId, behold = '') {
   );
 }
 
+/* ---------- Tofaktor ---------- */
+
+const TOFA_INNLOGGING_GYLDIG_MS = 5 * 60 * 1000; // tid fra riktig passord til koden må være inne
+const TOFA_MAKS_FORSOK = 5; // feil koder før brukeren må starte innloggingen på nytt
+const TOFA_OPPSETT_GYLDIG_MS = 10 * 60 * 1000;
+const ANTALL_RESERVEKODER = 10;
+
+// Sjekker en kode fra autentiseringsappen (6 sifre) eller en reservekode.
+// Begge kan bare brukes én gang: TOTP-steget lagres, og reservekoden merkes som brukt.
+// Oppdateringene har vilkåret i WHERE, så to samtidige forsøk med samme kode
+// ikke begge kan lykkes.
+async function sjekkAndreFaktor(kundeId, kode) {
+  if (!erTekst(kode) || kode.length > 32) return { ok: false };
+
+  const [rows] = await pool.execute(
+    `SELECT tofa_hemmelighet FROM kunder
+     WHERE kunde_id = ? AND tofa_aktivert_tid IS NOT NULL`,
+    [kundeId]
+  );
+  if (!rows[0]) return { ok: false };
+
+  const totpKode = kode.replace(/\s/g, '');
+  if (/^\d{6}$/.test(totpKode)) {
+    const steg = finnTotpSteg(dekrypter(rows[0].tofa_hemmelighet), totpKode);
+    if (steg === null) return { ok: false };
+    const [result] = await pool.execute(
+      `UPDATE kunder SET tofa_siste_steg = ?
+       WHERE kunde_id = ? AND (tofa_siste_steg IS NULL OR tofa_siste_steg < ?)`,
+      [steg, kundeId, steg]
+    );
+    return { ok: result.affectedRows === 1, reservekode: false };
+  }
+
+  const reservekode = normaliserReservekode(kode);
+  if (!reservekode) return { ok: false };
+  const [result] = await pool.execute(
+    `UPDATE tofa_reservekoder SET brukt_tid = NOW()
+     WHERE kunde_id = ? AND kode_hash = ? AND brukt_tid IS NULL`,
+    [kundeId, hashReservekode(reservekode)]
+  );
+  return { ok: result.affectedRows === 1, reservekode: true };
+}
+
+// Erstatter alle reservekodene til brukeren og returnerer de nye i klartekst (vises én gang).
+async function lagreNyeReservekoder(conn, kundeId) {
+  const koder = lagReservekoder(ANTALL_RESERVEKODER);
+  await conn.execute('DELETE FROM tofa_reservekoder WHERE kunde_id = ?', [kundeId]);
+  await conn.execute(
+    `INSERT INTO tofa_reservekoder (kunde_id, kode_hash)
+     VALUES ${koder.map(() => '(?, ?)').join(', ')}`,
+    koder.flatMap((kode) => [kundeId, hashReservekode(kode)])
+  );
+  return koder.map(formaterReservekode);
+}
+
 function avsluttSesjon(req, res) {
   req.session.destroy((err) => {
     if (err) console.error(err);
@@ -242,7 +313,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
   try {
     const [rows] = await pool.execute(
-      'SELECT kunde_id, epost, passord_hash FROM kunder WHERE epost = ?',
+      `SELECT kunde_id, epost, passord_hash, tofa_aktivert_tid
+       FROM kunder WHERE epost = ?`,
       [normaliserEpost(epost)]
     );
 
@@ -258,12 +330,66 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         console.error(err);
         return res.status(500).json({ error: 'sesjonsfeil' });
       }
+
+      // Med tofaktor er brukeren IKKE innlogget ennå: kundeId settes først når koden stemmer.
+      if (kunde.tofa_aktivert_tid) {
+        req.session.ventendeTofa = {
+          kundeId: kunde.kunde_id,
+          epost: kunde.epost,
+          utloper: Date.now() + TOFA_INNLOGGING_GYLDIG_MS,
+          forsok: 0,
+        };
+        return res.json({ trenger2fa: true });
+      }
+
       req.session.kundeId = kunde.kunde_id;
       res.json({ kunde_id: kunde.kunde_id, epost: kunde.epost });
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'database error' });
+  }
+});
+
+// Steg 2 av innloggingen for brukere med tofaktor.
+app.post('/api/login/2fa', loginLimiter, async (req, res) => {
+  const ventende = req.session.ventendeTofa;
+
+  if (!ventende || Date.now() > ventende.utloper) {
+    delete req.session.ventendeTofa;
+    return res.status(401).json({
+      error: 'innloggingen har utløpt, logg inn på nytt',
+      startPaaNytt: true,
+    });
+  }
+
+  ventende.forsok += 1;
+  if (ventende.forsok > TOFA_MAKS_FORSOK) {
+    delete req.session.ventendeTofa;
+    return res.status(401).json({
+      error: 'for mange feil koder, logg inn på nytt',
+      startPaaNytt: true,
+    });
+  }
+
+  try {
+    const resultat = await sjekkAndreFaktor(ventende.kundeId, req.body?.kode);
+    if (!resultat.ok) {
+      return res.status(401).json({ error: 'feil eller allerede brukt kode' });
+    }
+
+    const { kundeId, epost } = ventende;
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'sesjonsfeil' });
+      }
+      req.session.kundeId = kundeId;
+      res.json({ kunde_id: kundeId, epost, brukteReservekode: resultat.reservekode });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'databasefeil' });
   }
 });
 
@@ -274,8 +400,11 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/meg', requireLogin, async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT kunde_id, epost, opprettet, vilkaar_akseptert_tid, vilkaar_versjon
-       FROM kunder WHERE kunde_id = ?`,
+      `SELECT k.kunde_id, k.epost, k.opprettet, k.vilkaar_akseptert_tid, k.vilkaar_versjon,
+              k.tofa_aktivert_tid,
+              (SELECT COUNT(*) FROM tofa_reservekoder r
+               WHERE r.kunde_id = k.kunde_id AND r.brukt_tid IS NULL) AS reservekoder_igjen
+       FROM kunder k WHERE k.kunde_id = ?`,
       [req.session.kundeId]
     );
     if (!rows[0]) return res.status(401).json({ error: 'ikke innlogget' });
@@ -334,11 +463,159 @@ app.put('/api/meg/passord', requireLogin, sensitivLimiter, async (req, res) => {
   }
 });
 
+/* ---------- Tofaktor: slå på, slå av, nye reservekoder ---------- */
+
+// Steg 1: lag en ny nøkkel og vis den som QR-kode. Ingenting lagres på kontoen før
+// brukeren har bevist at appen virker (steg 2). Nøkkelen ligger kryptert i sesjonen så lenge.
+app.post('/api/meg/2fa/oppsett', requireLogin, sensitivLimiter, async (req, res) => {
+  try {
+    const [[kunde]] = await pool.execute(
+      'SELECT epost, tofa_aktivert_tid FROM kunder WHERE kunde_id = ?',
+      [req.session.kundeId]
+    );
+    if (kunde.tofa_aktivert_tid) {
+      return res.status(409).json({ error: 'tofaktor er allerede slått på' });
+    }
+
+    const hemmelighet = lagHemmelighet();
+    req.session.tofaOppsett = {
+      hemmelighet: krypter(hemmelighet),
+      utloper: Date.now() + TOFA_OPPSETT_GYLDIG_MS,
+    };
+
+    const qr = await QRCode.toDataURL(otpauthUri({ hemmelighet, epost: kunde.epost }), {
+      margin: 1,
+      width: 220,
+    });
+    res.json({ qr, hemmelighet });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'serverfeil' });
+  }
+});
+
+// Steg 2: brukeren skriver inn passord og en kode fra appen. Da lagres nøkkelen,
+// reservekodene lages, og andre enheter logges ut (de har ikke bestått tofaktor).
+app.post('/api/meg/2fa/aktiver', requireLogin, sensitivLimiter, async (req, res) => {
+  const { passord, kode } = req.body ?? {};
+  const oppsett = req.session.tofaOppsett;
+  const kundeId = req.session.kundeId;
+
+  if (!oppsett || Date.now() > oppsett.utloper) {
+    delete req.session.tofaOppsett;
+    return res.status(400).json({ error: 'oppsettet har utløpt, start på nytt' });
+  }
+
+  let conn;
+  try {
+    if (!(await passordStemmer(kundeId, passord))) {
+      return res.status(401).json({ error: 'feil passord' });
+    }
+
+    const hemmelighet = dekrypter(oppsett.hemmelighet);
+    const steg = finnTotpSteg(hemmelighet, erTekst(kode) ? kode.replace(/\s/g, '') : '');
+    if (steg === null) {
+      return res.status(400).json({
+        error: 'feil kode. Sjekk at klokka på telefonen stiller seg automatisk.',
+      });
+    }
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const [result] = await conn.execute(
+      `UPDATE kunder
+       SET tofa_hemmelighet = ?, tofa_aktivert_tid = NOW(), tofa_siste_steg = ?
+       WHERE kunde_id = ? AND tofa_aktivert_tid IS NULL`,
+      [krypter(hemmelighet), steg, kundeId]
+    );
+    if (result.affectedRows !== 1) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'tofaktor er allerede slått på' });
+    }
+    const reservekoder = await lagreNyeReservekoder(conn, kundeId);
+    await conn.commit();
+
+    delete req.session.tofaOppsett;
+    await slettAndreSesjoner(kundeId, req.sessionID);
+    res.json({ reservekoder });
+  } catch (err) {
+    if (conn) await conn.rollback().catch(() => {});
+    console.error(err);
+    res.status(500).json({ error: 'databasefeil' });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// Krever både passord og en gyldig kode, så en kapret sesjon alene ikke kan slå det av.
+app.post('/api/meg/2fa/deaktiver', requireLogin, sensitivLimiter, async (req, res) => {
+  const { passord, kode } = req.body ?? {};
+  const kundeId = req.session.kundeId;
+
+  let conn;
+  try {
+    if (!(await passordStemmer(kundeId, passord))) {
+      return res.status(401).json({ error: 'feil passord' });
+    }
+    if (!(await sjekkAndreFaktor(kundeId, kode)).ok) {
+      return res.status(401).json({ error: 'feil eller allerede brukt kode' });
+    }
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await conn.execute(
+      `UPDATE kunder
+       SET tofa_hemmelighet = NULL, tofa_aktivert_tid = NULL, tofa_siste_steg = NULL
+       WHERE kunde_id = ?`,
+      [kundeId]
+    );
+    await conn.execute('DELETE FROM tofa_reservekoder WHERE kunde_id = ?', [kundeId]);
+    await conn.commit();
+    res.status(204).end();
+  } catch (err) {
+    if (conn) await conn.rollback().catch(() => {});
+    console.error(err);
+    res.status(500).json({ error: 'databasefeil' });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// Nye reservekoder (f.eks. når de fleste er brukt opp). De gamle slutter å virke.
+app.post('/api/meg/2fa/reservekoder', requireLogin, sensitivLimiter, async (req, res) => {
+  const { passord, kode } = req.body ?? {};
+  const kundeId = req.session.kundeId;
+
+  let conn;
+  try {
+    if (!(await passordStemmer(kundeId, passord))) {
+      return res.status(401).json({ error: 'feil passord' });
+    }
+    if (!(await sjekkAndreFaktor(kundeId, kode)).ok) {
+      return res.status(401).json({ error: 'feil eller allerede brukt kode' });
+    }
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const reservekoder = await lagreNyeReservekoder(conn, kundeId);
+    await conn.commit();
+    res.json({ reservekoder });
+  } catch (err) {
+    if (conn) await conn.rollback().catch(() => {});
+    console.error(err);
+    res.status(500).json({ error: 'databasefeil' });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 // GDPR art. 15 og 20: innsyn og dataportabilitet — alt vi har om brukeren, som JSON.
+// Tofaktor-nøkkelen og reservekodene tas ikke med: de er sikkerhetsnøkler, ikke opplysninger
+// om brukeren, og en eksportfil skal ikke kunne brukes til å omgå tofaktor.
 app.get('/api/meg/eksport', requireLogin, async (req, res) => {
   try {
     const [[konto]] = await pool.execute(
-      `SELECT epost, opprettet, vilkaar_akseptert_tid, vilkaar_versjon
+      `SELECT epost, opprettet, vilkaar_akseptert_tid, vilkaar_versjon, tofa_aktivert_tid
        FROM kunder WHERE kunde_id = ?`,
       [req.session.kundeId]
     );

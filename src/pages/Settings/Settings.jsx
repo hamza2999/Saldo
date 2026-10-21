@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext.jsx'
 import { useTransactions } from '../../context/TransactionsContext.jsx'
 import { BACKUP_RETENTION } from '../../constants/privacy.js'
+import TwoFactorSection from './TwoFactorSection.jsx'
 import './Settings.css'
 
 // Tidsstempler fra databasen ('2026-10-21T08:15:00.000Z') -> '21.10.2026'
@@ -205,6 +206,8 @@ function Settings() {
             </div>
           </form>
         </section>
+
+        <TwoFactorSection />
 
         <section className="card">
           <div className="card-header">

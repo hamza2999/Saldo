@@ -25,6 +25,11 @@ const STORED_DATA = [
     how: 'Til du sletter kontoen',
   },
   {
+    what: 'Tofaktor, kun hvis du slår det på (kryptert nøkkel til autentiseringsappen, tidspunkt for aktivering og reservekoder lagret som hash)',
+    why: 'Ekstra beskyttelse av innloggingen',
+    how: 'Til du slår av tofaktor eller sletter kontoen',
+  },
+  {
     what: 'Transaksjoner (type, beløp, dato, kategori og valgfri beskrivelse)',
     why: 'Selve tjenesten: oversikt over inntekter og utgifter',
     how: 'Til du sletter dem eller kontoen',
@@ -205,7 +210,9 @@ function Privacy() {
           <p>
             Passord lagres kun som kryptert hash. Innloggingscookien er utilgjengelig for
             JavaScript (httpOnly) og sendes kun over HTTPS i produksjon. Hver bruker har bare
-            tilgang til sine egne data. Ved bytte av passord logges alle andre enheter ut.
+            tilgang til sine egne data. Ved bytte av passord logges alle andre enheter ut. Du kan
+            slå på tofaktorautentisering i Innstillinger, slik at innlogging også krever en kode
+            fra en app på telefonen din.
           </p>
         </section>
 

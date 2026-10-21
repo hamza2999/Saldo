@@ -4,7 +4,20 @@ CREATE TABLE IF NOT EXISTS kunder (
   passord_hash           VARCHAR(255) NOT NULL,
   opprettet              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   vilkaar_akseptert_tid  TIMESTAMP NOT NULL,
-  vilkaar_versjon        VARCHAR(20) NOT NULL
+  vilkaar_versjon        VARCHAR(20) NOT NULL,
+  tofa_hemmelighet       VARCHAR(255) NULL,
+  tofa_aktivert_tid      TIMESTAMP NULL DEFAULT NULL,
+  tofa_siste_steg        BIGINT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS tofa_reservekoder (
+  kode_id    INT AUTO_INCREMENT PRIMARY KEY,
+  kunde_id   INT NOT NULL,
+  kode_hash  CHAR(64) NOT NULL,
+  brukt_tid  TIMESTAMP NULL DEFAULT NULL,
+  INDEX idx_reservekode_kunde (kunde_id, kode_hash),
+  CONSTRAINT fk_reservekoder_kunde
+    FOREIGN KEY (kunde_id) REFERENCES kunder(kunde_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS kategorier (

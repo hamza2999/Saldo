@@ -22,6 +22,8 @@ export function UserProvider({ children }) {
         opprettet: data.opprettet,
         samtykkeTid: data.vilkaar_akseptert_tid,
         samtykkeVersjon: data.vilkaar_versjon,
+        tofaAktivertTid: data.tofa_aktivert_tid,
+        reservekoderIgjen: Number(data.reservekoder_igjen ?? 0),
       });
     } catch {
       setUser(null);
@@ -58,7 +60,44 @@ export function UserProvider({ children }) {
     setUser(null);
   }
 
-  const value = { user, loading, signIn, signOut, changeEmail, changePassword, deleteAccount };
+  /* ---------- Tofaktor ---------- */
+
+  // Steg 1: henter QR-kode og nøkkel. Ingenting er slått på ennå.
+  async function startTwoFactorSetup() {
+    return request('/api/meg/2fa/oppsett', 'POST', {});
+  }
+
+  // Steg 2: slår på tofaktor og returnerer reservekodene (vises bare én gang).
+  async function enableTwoFactor(passord, kode) {
+    const data = await request('/api/meg/2fa/aktiver', 'POST', { passord, kode });
+    await fetchUser();
+    return data.reservekoder;
+  }
+
+  async function disableTwoFactor(passord, kode) {
+    await request('/api/meg/2fa/deaktiver', 'POST', { passord, kode });
+    await fetchUser();
+  }
+
+  async function newBackupCodes(passord, kode) {
+    const data = await request('/api/meg/2fa/reservekoder', 'POST', { passord, kode });
+    await fetchUser();
+    return data.reservekoder;
+  }
+
+  const value = {
+    user,
+    loading,
+    signIn,
+    signOut,
+    changeEmail,
+    changePassword,
+    deleteAccount,
+    startTwoFactorSetup,
+    enableTwoFactor,
+    disableTwoFactor,
+    newBackupCodes,
+  };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
@@ -83,4 +122,6 @@ async function request(url, method, body) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || `Serverfeil (${res.status})`);
   }
+  if (res.status === 204) return null;
+  return res.json().catch(() => null);
 }
